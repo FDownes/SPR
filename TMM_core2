@@ -1,0 +1,238 @@
+"""
+TMM Model - Kretschmann configuration
+"""
+
+
+import numpy as np
+import matplotlib.pyplot as plt
+import DispDielectrics as dispD
+import DispMetals as dispM
+import DispOther as dispO
+
+
+def get_material_dispersion(materials_list, wavelength_array):
+
+    """
+    Generate wavelength dependent material dispersion for a list of materials.
+
+    Parameters
+    ----------
+    materials_list : list of strings
+        List of string ids corresponding to materials.
+        For a list off all availabe materials: *****
+    wavelength_array : numpy.array
+        Wavelength of light. Min-Max depends on the material. 
+
+    Returns
+    -------
+    df : Pandas DataFrame
+        Dataframe with keys: wavelength, all components in materials_list.
+
+    """
+
+    permitted_materials = ['bk7', 'sio2_m', 'sio2_py',
+                           'ta2o5',
+                           'ag', 'pd']
+
+
+    dispersion_list = []
+    dispersion_dict = {}
+
+    if type(materials_list)==str:
+        materials_list = [materials_list]
+
+    for material in materials_list:
+        # if material not in permitted_materials:
+            # raise ValueError('Warning, not a valid material.')
+        
+    
+
+
+#%%
+
+
+get_material_dispersion(materials_list=['bk7', 'sio2_m'], wavelength_array=np.linspace(450, 2000, 50)):
+
+    
+
+
+#%%#
+
+
+
+
+
+
+# Define all empty lists
+n_BK7, n_schott, n_sio2M, n_sio2PY, e_Pd, e_Ag, n_ta2o5= ([] for i in range(7))
+
+for i in range(len(wavelength_array)):
+    n_BK7.append(dispD.BK7(wavelength=wavelength_array[i]))
+    n_schott.append(dispD.schott(wavelength=wavelength_array[i]))
+    n_sio2M.append(dispD.sio2M(wavelength=wavelength_array[i]))
+    n_sio2PY.append(dispD.sio2PY(wavelength=wavelength_array[i]))
+    e_Pd.append(dispM.BB_Pd(wavelength=wavelength_array[i]))
+    e_Ag.append(dispM.BB_Ag(wavelength=wavelength_array[i]))
+    n_ta2o5.append(dispO.ta2o5(wavelength=wavelength_array[i]))
+
+
+
+
+        if material.lower()=='bk7':
+            dispersion_list.append()
+
+
+        
+#%%
+
+m1 = get_material_dispersion(materials_list='bk7', wavelength_array=633)
+                             
+
+
+#%%
+n_BK7, e_Ag, e_Pd, n_ta2o5, n_sio2M, n_sio2PY, rs, Rs, rp, Rp, l = ([] for i in range(11))
+
+#wavelength_array = np.linspace(450, 2000, 50)
+wavelength_array = [633]                                 # list or linspace??
+# t_array = np.arange(1, 90, 1)                      # list or linspace?
+
+d = [0, 30, 100, 3, 0]            # Thickness of layers (in order from core / prism)
+
+f_l = 0.01      # fibre length
+f_d = 200e-6    # fibre diameter
+NA = 0.22
+num_int_points = 106  # number of sample points used to compute the Gaus-Legendre quadrature
+
+def tmm(wavelength_array=633,
+        layer_thickness_list=[0, 30, 0],
+        materials_list=['bk7', 'ag', 'air'],
+        fibre_length=0.01,
+        fibre_diameter=200e-6,
+        NA=0.22,
+        num_int_points=106,
+        
+        ):
+
+    """
+    
+    """
+    
+
+N = len(d)                       # Number of layers in the Multilayer
+
+# Include all wavelengths:
+for i in range(len(wavelength_array)):
+    l.append(wavelength_array[i])
+
+    # Generate Material Properties :
+    n_BK7.append(dispD.BK7(l[i]))       # Glass prism
+    e_Ag.append(dispM.BB_Ag(l[i]))
+    e_Pd.append(dispM.BB_Pd(l[i]))
+    n_ta2o5.append(dispO.ta2o5(l[i]))
+    n_sio2M.append(dispD.sio2M(l[i]))   # SiO2 Fibre Core
+    n_sio2PY.append(dispD.sio2PY(l[i])) # SiO2 This Film
+
+
+    # Will be moved, need to be able to initialize material properties
+    # Material in each layer, same order as thicknesses list
+    n = [n_sio2M[i], np.sqrt(e_Ag[i]), n_sio2PY[i], np.sqrt(e_Pd[i]), 1]    
+
+    # Optical fibre properties:
+    n_core = n_sio2M[i]
+    n_cladding = np.sqrt(n_core**2 - NA**2)
+    t_critical = np.arcsin(n_cladding / n_core)
+    t_upper = 90
+    t_lower = 0     # t_critical
+
+    # Gauss Legendre Quadrature:
+    sample_points, weights = np.polynomial.legendre.leggauss(num_int_points)
+    norm_int =((t_upper - t_lower) / 2) * np.sum(weights)
+    t_gauss = ((t_upper - t_lower) / 2) * sample_points + ((t_lower + t_upper) / 2);
+
+    # Include all angles of incidence:
+    for t in range(len(t_gauss)):
+        theta = t_gauss[t]
+        t_rad = theta * np.pi /180
+
+        n_ref = f_l / (f_d * np.tan(t_rad)) # number of fibre reflections
+        
+        Ms = np.matrix([[1, 0], [0, 1]])
+        Mp = np.matrix([[1, 0], [0, 1]])
+        
+        e, qs, qp, beta_j = ([] for i in range(4))
+        for per in range(N):
+            # Inner components of the multilayer:
+            e.append((np.array(n[per]).real**2) - (np.array(n[per]).imag**2) + 1j * (2 * np.array(n[per]).real * np.array(n[per]).imag))
+
+        # Transfer matrix multilayer setup:
+        for k in range(1, N-1):
+            # e.append((np.array(n[k]).real**2) - (np.array(n[k]).imag**2) + 1j * (2 * np.array(n[k]).real * np.array(n[k]).imag))
+            qs.append(np.sqrt(e[k] - n[0]**2 * np.sin(t_rad)**2))
+            qp.append(np.sqrt(e[k] - (n[0]**2 * np.sin(t_rad)**2)) / e[k])
+            beta_j.append((2 * np.pi / l[i]) * d[k]  * np.sqrt(e[k] - n[0]**2 * np.sin(t_rad)**2))
+
+            # S-polarization:
+            m11s = np.cos(np.array(beta_j[k-1]))
+            m12s = -1 * (1j / np.array(qs[k-1])) * np.sin(np.array(beta_j[k-1]))
+            m21s = -1 * (1j * np.array(qs[k-1])) * np.sin(np.array(beta_j[k-1]))
+            m22s = np.cos(np.array(beta_j[k-1]))
+            Ms = Ms * np.matrix([[m11s, m12s], [m21s, m22s]])
+
+            # P-polarization:
+            m11p = np.cos(np.array(beta_j[k-1]))
+            m12p = -1 * (1j / np.array(qp[k-1])) * np.sin(np.array(beta_j[k-1]))
+            m21p = -1 * (1j * np.array(qp[k-1])) * np.sin(np.array(beta_j[k-1]))
+            m22p = np.cos(np.array(beta_j[k-1]))
+            Mp = Mp * np.matrix([[m11p, m12p], [m21p, m22p]])
+
+        # S-polarization:
+        qs0 = np.array(np.sqrt(e[0] - n[0]**2 * np.sin(t_rad)**2))
+        qsN = np.array(np.sqrt(e[-1] - n[0]**2 * np.sin(t_rad)**2))
+        a_s = (qs0 * (Ms[0,0] + (Ms[0,1] * qsN)) - (Ms[1,0] + (Ms[1,1] * qsN)))
+        b_s = (qs0 * (Ms[0,0] + (Ms[0,1] * qsN)) + (Ms[1,0] + (Ms[1,1] * qsN)))
+        rs.append(a_s / b_s)
+        Rs.append(np.abs(rs[t])**2) # Reflectance
+
+        # P-polarization:
+        qp0 = np.array(np.sqrt(e[0] - n[0]**2 * np.sin(t_rad)**2) / e[0])
+        qpN = np.array(np.sqrt(e[-1] - n[0]**2 * np.sin(t_rad)**2) / e[-1])
+        a_p = (qp0 * (Mp[0,0] + (Mp[0,1] * qpN)) - (Mp[1,0] + (Mp[1,1] * qpN)))
+        b_p = (qp0 * (Mp[0,0] + (Mp[0,1] * qpN)) + (Mp[1,0] + (Mp[1,1] * qpN)))
+        rp.append(a_p / b_p)
+        Rp.append(np.abs(rp[t])**2) # Reflectance
+
+
+
+        # RSN_0(ind_theta)=power(rs*conj(rs),Nref);
+        # RPN_0(ind_theta)=power(rp*conj(rp),Nref);
+        # dP0(ind_theta) = (n_core^2)*(sin(theta_rad))*(cos(theta_rad))/((1-((n_core^2)*(cos(theta_rad)^2)))^2);
+        
+
+#%%
+
+
+
+
+
+
+#%%
+# plt.close('all')
+fig = plt.figure()
+ax = plt.subplot(111)
+ax.plot(t_gauss, Rp, 'b')
+
+plt.xlabel("Incident Angle (\degree)")
+plt.ylabel("Reflectance")
+plt.title("SPR")
+fig.legend((
+        'm',
+        ), loc='upper right')
+plt.show()
+
+
+
+
+
+
+
+
