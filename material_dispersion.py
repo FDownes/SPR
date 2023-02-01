@@ -21,8 +21,8 @@ Classes
  - Ta2O5, Lorentz-Drude Model.
 """
 
-__all__ = ['n_Dielectrics', 'n_Metals', 'n_Other',]
 
+__all__ = ['n_Dielectrics', 'n_Metals', 'n_Other',]
 
 import numpy as np
 from scipy.special import wofz

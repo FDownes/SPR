@@ -1,7 +1,8 @@
 """
-Created on Wed Jun 15 16:16:44 2022
+This is a script for testing dispersion for various materials.
 
-@author: fionn
+
+
 """
 
 import numpy as np
